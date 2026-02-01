@@ -2,6 +2,7 @@ package org.example;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.example.model.Config;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -15,6 +16,7 @@ public class ConfigLoader {
     private static final String ENV_URL = "URL";
     private static final String ENV_INTERVAL_SECONDS = "INTERVAL_SECONDS";
     private static final String ENV_TIMEOUT_SECONDS = "TIMEOUT_SECONDS";
+    private static final String ENV_DEVICE_ID = "DEVICE_ID";
 
     //  This file is only for testing
     private static final String PROPERTIES_FILE = "src/main/resources/config.properties";
@@ -22,6 +24,7 @@ public class ConfigLoader {
     private static final String PROP_URL = "url";
     private static final String PROP_INTERVAL_SECONDS = "interval_seconds";
     private static final String PROP_TIMEOUT_SECONDS = "timeout_seconds";
+    private static final String PROP_DEVICE_ID = "device_id";
 
     public Optional<Config> loadConfigFromEnvironment() {
         String envUrl = System.getenv(ENV_URL);
@@ -53,8 +56,13 @@ public class ConfigLoader {
             return Optional.empty();
         }
 
+        String envDeviceId = System.getenv(ENV_DEVICE_ID);
+        if (envDeviceId == null) {
+            return Optional.empty();
+        }
+
         try {
-            return Optional.of(new Config(envUrl, envIntervalSeconds, envTimeoutSeconds));
+            return Optional.of(new Config(envUrl, envIntervalSeconds, envTimeoutSeconds, envDeviceId));
         } catch (IllegalArgumentException e) {
             log.error("environment variables - validation failed", e);
             return Optional.empty();
@@ -65,6 +73,7 @@ public class ConfigLoader {
         String url;
         int intervalSeconds;
         int timeoutSeconds;
+        String deviceId;
 
         try (FileInputStream fis = new FileInputStream(PROPERTIES_FILE)) {
             Properties props = new Properties();
@@ -103,12 +112,19 @@ public class ConfigLoader {
                 return Optional.empty();
             }
 
+            if (props.containsKey(PROP_DEVICE_ID)) {
+                deviceId = props.getProperty(PROP_DEVICE_ID);
+            } else {
+                log.error("Missing device_id property in config properties file");
+                return Optional.empty();
+            }
+
         } catch (IOException e) {
             return Optional.empty();
         }
 
         try {
-            return Optional.of(new Config(url, intervalSeconds, timeoutSeconds));
+            return Optional.of(new Config(url, intervalSeconds, timeoutSeconds, deviceId));
         } catch (IllegalArgumentException e) {
             log.error("config.properties - validation failed", e);
             return Optional.empty();

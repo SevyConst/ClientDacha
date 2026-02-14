@@ -6,17 +6,21 @@ import org.apache.logging.log4j.Logger;
 import org.example.model.Config;
 import org.example.model.Event;
 import org.example.model.EventRequest;
+import org.example.model.EventType;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class Main {
 
     private static final Logger log = LogManager.getLogger(Main.class);
 
-    private static final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    public static final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     static void main() {
         log.info("Starting ClientDacha");
@@ -26,13 +30,36 @@ public class Main {
             log.error("can't load config");
             return;
         }
-        log.info("Loaded configuration: {}", config);
+        log.info("Loaded configuration: {}", config.get());
 
-        Event event = new Event(1, "start", LocalDateTime.now().format(dateTimeFormatter));
+        Event event = new Event(1, EventType.START, LocalDateTime.now().format(dateTimeFormatter));
         EventRequest eventRequest = new EventRequest(Collections.singletonList(event), config.get().deviceId());
 
         HttpSender httpSender = new HttpSender(config.get().url(), config.get().timeoutSeconds());
         httpSender.send(eventRequest);
+
+        ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+        SenderRunnable senderRunnable = new SenderRunnable(httpSender, config.get().deviceId());
+        scheduledExecutorService.scheduleWithFixedDelay(
+                senderRunnable,
+                config.get().intervalSeconds(),
+                config.get().intervalSeconds(),
+                TimeUnit.SECONDS
+        );
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            log.info("Shutting down");
+            scheduledExecutorService.shutdown();
+            try {
+                if (!scheduledExecutorService.awaitTermination(5, TimeUnit.SECONDS)) {
+                    log.warn("Forcing scheduler shutdown");
+                    scheduledExecutorService.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                scheduledExecutorService.shutdownNow();
+            }
+        }));
     }
 
     private static Optional<Config> loadConfig() {
@@ -40,7 +67,10 @@ public class Main {
 
         Optional<Config> config = configLoader.loadConfigFromEnvironment();
         if (config.isEmpty()) {
-            log.warn("Can't load config from environment - trying load config from config.properties");
+            log.warn(
+                    "Can't load config from environment - trying load config from {}",
+                    ConfigLoader.PROPERTIES_FILE
+            );
             config = configLoader.loadConfigFromProperties();
         }
         return config;

@@ -19,7 +19,7 @@ public class ConfigLoader {
     private static final String ENV_DEVICE_ID = "DEVICE_ID";
 
     //  This file is only for testing
-    private static final String PROPERTIES_FILE = "src/main/resources/config.properties";
+    public static final String PROPERTIES_FILE = "src/main/resources/config.properties";
 
     private static final String PROP_URL = "url";
     private static final String PROP_INTERVAL_SECONDS = "interval_seconds";
@@ -120,6 +120,7 @@ public class ConfigLoader {
             }
 
         } catch (IOException e) {
+            log.error("Failed to read config properties", e);
             return Optional.empty();
         }
 

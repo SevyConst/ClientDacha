@@ -14,6 +14,7 @@ import java.time.Duration;
 
 public class HttpSender {
     private static final Logger log = LogManager.getLogger(HttpSender.class);
+
     private final HttpClient httpClient;
     private final String url;
     private final int timeoutSeconds;
@@ -29,16 +30,31 @@ public class HttpSender {
     public void send(EventRequest eventRequest) {
         String json = gson.toJson(eventRequest);
 
+        log.info("Sending json: {}", json);
+
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .timeout(Duration.ofSeconds(timeoutSeconds))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(json)).build();
 
+        HttpResponse<String> response;
         try {
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
         } catch (IOException | InterruptedException e) {
             log.error(e);
+            return;
         }
+
+        if (response.statusCode() != 200) {
+            if (response.body() != null) {
+                log.error("HTTP response code '{}', json: {}", response.statusCode(), response.body());
+            } else {
+                log.error("HTTP response code {}", response.statusCode());
+            }
+            return;
+        }
+
+        log.info("response: {}", response.body());
     }
 }

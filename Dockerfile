@@ -6,11 +6,11 @@ COPY gradle gradle
 COPY build.gradle.kts settings.gradle.kts gradlew ./
 
 RUN chmod +x gradlew
-RUN ./gradlew shadowJar --no-daemon
+RUN ./gradlew dependencies --no-daemon
 
 COPY src src
 
-RUN gradle shadowJar --no-daemon
+RUN ./gradlew shadowJar --no-daemon
 
 FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app

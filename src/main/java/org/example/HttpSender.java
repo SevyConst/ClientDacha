@@ -16,15 +16,16 @@ public class HttpSender {
     private static final Logger log = LogManager.getLogger(HttpSender.class);
 
     private final HttpClient httpClient;
-    private final String url;
+    private final URI uri;
     private final int timeoutSeconds;
     private final Gson gson = new Gson();
 
     public HttpSender(String url, int timeoutSeconds) {
-        this.url = url;
+        this.uri = URI.create(url);
         this.timeoutSeconds = timeoutSeconds;
-        httpClient = HttpClient.newHttpClient();
-
+        httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(timeoutSeconds))
+                .build();
     }
 
     public void send(EventRequest eventRequest) {
@@ -33,7 +34,7 @@ public class HttpSender {
         log.info("Sending json: {}", json);
 
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
+                .uri(uri)
                 .timeout(Duration.ofSeconds(timeoutSeconds))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(json)).build();
